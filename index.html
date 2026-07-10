@@ -535,55 +535,59 @@
 <!-- =========================================================
      Glia integration
      ========================================================= -->
-<script async src="https://api.glia.com/salemove_integration.js"></script>
 <script>
   (function () {
     // Must match a locale key enabled for the site in Glia Hub
-    // (Admin Console > Settings > Locales). Use a base key like 'es-MX'
-    // or the custom locale key defined for the site (e.g. 'Spanish').
+    // (Admin Console > Settings > Locales).
     var SPANISH_LOCALE = 'es-MX';
     var DEFAULT_LOCALE = 'en-US';
 
-    function whenGliaReady(callback) {
-      var tries = 0;
-      (function poll() {
-        if (window.getGliaApi) {
-          window.getGliaApi({ version: 'v1' }).then(callback);
-        } else if (++tries < 120) {
-          setTimeout(poll, 250);
-        } else {
-          console.warn('[Blockcraft] Glia SDK did not load. Is this domain registered for your Glia site?');
-        }
-      })();
-    }
+    var installSaleMove = function (onLoad) {
+      var doc = document;
+      var tag = doc.createElement('script');
+      var first = doc.getElementsByTagName('script')[0];
+      tag.async = 1;
+      tag.src = 'https://api.glia.com/salemove_integration.js';
+      tag.type = 'text/javascript';
+      if (onLoad) tag.addEventListener('load', onLoad);
+      first.parentNode.insertBefore(tag, first);
+    };
 
-    whenGliaReady(function (glia) {
-      var checkAndApplyLocale = function () {
-        var path = window.location.pathname.toLowerCase();
-        try {
-          if (path.includes('/es')) {
-            glia.setLocale(SPANISH_LOCALE);
-          } else {
-            glia.setLocale(DEFAULT_LOCALE);
-          }
-        } catch (err) {
-          console.warn('[Blockcraft] Could not set Glia locale:', err);
-        }
-      };
-
-      // Apply on initial load
-      checkAndApplyLocale();
-
-      // Re-apply when the visitor switches language (SPA navigation)
-      window.addEventListener('blockcraft:localechange', checkAndApplyLocale);
-
-      // Re-apply when an engagement ends, since the widget reverts
-      // to the site default locale without a page refresh
-      if (typeof glia.addEventListener === 'function') {
-        glia.addEventListener('engagement_end', function () {
-          checkAndApplyLocale();
-        });
+    installSaleMove(function () {
+      if (!window.sm || typeof sm.getApi !== 'function') {
+        console.warn('[Blockcraft] Glia script loaded but the SDK is not available. Is this domain registered for your Glia site?');
+        return;
       }
+
+      sm.getApi({ version: 'v1' }).then(function (glia) {
+        var checkAndApplyLocale = function () {
+          var path = window.location.pathname.toLowerCase();
+          try {
+            if (path.includes('/es')) {
+              glia.setLocale(SPANISH_LOCALE);
+            } else {
+              glia.setLocale(DEFAULT_LOCALE);
+            }
+          } catch (err) {
+            console.warn('[Blockcraft] Could not set Glia locale:', err);
+          }
+        };
+
+        // Apply on initial load
+        checkAndApplyLocale();
+
+        // Re-apply when the visitor switches language (SPA navigation)
+        window.addEventListener('blockcraft:localechange', checkAndApplyLocale);
+
+        // Re-apply when an engagement ends, since the widget reverts
+        // to the site default locale without a page refresh
+        var endEvent = (glia.EVENTS && (glia.EVENTS.ENGAGEMENT_ENDED || glia.EVENTS.ENGAGEMENT_END)) || 'engagement_end';
+        if (typeof glia.addEventListener === 'function') {
+          glia.addEventListener(endEvent, function () {
+            checkAndApplyLocale();
+          });
+        }
+      });
     });
   })();
 </script>
