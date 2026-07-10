@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blockcraft Bank — Banking for the Overworld</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page-bg: #1d1d21;
+    --page-bg-alt: #212126;
+    --gui: #c6c6c6;
+    --gui-light: #ffffff;
+    --gui-dark: #555555;
+    --slot: #8b8b8b;
+    --slot-dark: #373737;
+    --grass: #7cbd56;
+    --grass-dark: #5d9c3f;
+    --dirt: #79553a;
+    --dirt-dark: #5d4128;
+    --emerald: #17c964;
+    --gold: #f6c525;
+    --diamond: #4aedd9;
+    --ink: #3f3f3f;
+    --cream: #fcfcfc;
+    --danger: #e05b4b;
+    --display: 'Press Start 2P', monospace;
+    --body: 'VT323', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+  }
+
+  body {
+    font-family: var(--body);
+    font-size: 22px;
+    line-height: 1.35;
+    color: var(--cream);
+    background-color: var(--page-bg);
+    background-image: repeating-conic-gradient(var(--page-bg-alt) 0% 25%, var(--page-bg) 0% 50%);
+    background-size: 32px 32px;
+    image-rendering: pixelated;
+  }
+
+  a { color: inherit; }
+
+  /* ---------- Minecraft GUI building blocks ---------- */
+  .gui-panel {
+    background: var(--gui);
+    color: var(--ink);
+    border: 4px solid;
+    border-color: var(--gui-light) var(--gui-dark) var(--gui-dark) var(--gui-light);
+    box-shadow: 0 0 0 3px #000;
+  }
+
+  .mc-btn {
+    display: inline-block;
+    font-family: var(--display);
+    font-size: 12px;
+    color: var(--cream);
+    text-decoration: none;
+    text-align: center;
+    background: #6f6f6f;
+    border: 3px solid;
+    border-color: #a5a5a5 #3a3a3a #3a3a3a #a5a5a5;
+    box-shadow: 0 0 0 2px #000;
+    padding: 12px 18px;
+    cursor: pointer;
+    text-shadow: 2px 2px 0 #3b3b3b;
+  }
+  .mc-btn:hover, .mc-btn:focus-visible {
+    background: #7683b8;
+    border-color: #b3bce2 #3d4463 #3d4463 #b3bce2;
+  }
+  .mc-btn:focus-visible { outline: 3px dashed var(--gold); outline-offset: 4px; }
+  .mc-btn--emerald {
+    background: #2b9e5c;
+    border-color: #59d68f #17603a #17603a #59d68f;
+  }
+  .mc-btn--emerald:hover, .mc-btn--emerald:focus-visible { background: #35b96d; }
+
+  /* ---------- Header ---------- */
+  header {
+    background: #2a2a2e;
+    border-bottom: 6px solid var(--grass);
+    box-shadow:
+      0 6px 0 var(--grass-dark),
+      0 18px 0 var(--dirt),
+      0 26px 0 var(--dirt-dark);
+    position: relative;
+    z-index: 5;
+  }
+  .header-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--display);
+    font-size: 15px;
+    color: var(--cream);
+    text-decoration: none;
+    text-shadow: 3px 3px 0 #17603a;
+  }
+  .logo svg { display: block; }
+  nav { margin-left: auto; }
+  nav ul { list-style: none; display: flex; gap: 22px; flex-wrap: wrap; }
+  nav a {
+    text-decoration: none;
+    font-size: 24px;
+    padding: 2px 4px;
+  }
+  nav a:hover, nav a:focus-visible { color: var(--gold); outline: none; text-decoration: underline; }
+
+  .lang-toggle {
+    display: flex;
+    gap: 6px;
+    margin-left: 12px;
+  }
+  .lang-toggle button {
+    font-family: var(--display);
+    font-size: 10px;
+    padding: 8px 10px;
+    background: #6f6f6f;
+    color: var(--cream);
+    border: 3px solid;
+    border-color: #a5a5a5 #3a3a3a #3a3a3a #a5a5a5;
+    box-shadow: 0 0 0 2px #000;
+    cursor: pointer;
+  }
+  .lang-toggle button:hover { background: #7683b8; }
+  .lang-toggle button:focus-visible { outline: 3px dashed var(--gold); outline-offset: 3px; }
+  .lang-toggle button[aria-pressed="true"] {
+    background: var(--emerald);
+    color: #06341b;
+    border-color: #59d68f #0c5c33 #0c5c33 #59d68f;
+    text-shadow: none;
+  }
+
+  /* ---------- Layout ---------- */
+  main { max-width: 1080px; margin: 0 auto; padding: 72px 24px 48px; }
+  section { margin-bottom: 72px; }
+
+  .section-title {
+    font-family: var(--display);
+    font-size: 15px;
+    color: var(--gold);
+    text-shadow: 3px 3px 0 #5a4405;
+    margin-bottom: 28px;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero { display: grid; grid-template-columns: 1.4fr 1fr; gap: 40px; align-items: center; }
+  .hero h1 {
+    font-family: var(--display);
+    font-size: clamp(20px, 3.4vw, 34px);
+    line-height: 1.6;
+    text-shadow: 4px 4px 0 #000;
+    margin-bottom: 22px;
+  }
+  .hero h1 .accent { color: var(--emerald); }
+  .hero p { font-size: 26px; color: #cfcfd4; margin-bottom: 30px; max-width: 46ch; }
+  .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+
+  .hero-art { display: flex; justify-content: center; }
+  .hero-art svg { width: min(240px, 60vw); height: auto; filter: drop-shadow(8px 8px 0 rgba(0,0,0,.55)); }
+
+  /* ---------- Vault / inventory ---------- */
+  .vault { padding: 26px; }
+  .vault-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .slot {
+    background: var(--slot);
+    border: 4px solid;
+    border-color: var(--slot-dark) var(--gui-light) var(--gui-light) var(--slot-dark);
+    padding: 18px 14px;
+    text-align: center;
+  }
+  .slot svg { width: 56px; height: 56px; }
+  .slot .count {
+    display: block;
+    font-family: var(--display);
+    font-size: 16px;
+    margin-top: 12px;
+    color: var(--cream);
+    text-shadow: 2px 2px 0 #2c2c2c;
+  }
+  .slot .label { display: block; font-size: 22px; margin-top: 8px; color: #2c2c2c; }
+
+  /* ---------- Trades ---------- */
+  .trades { padding: 26px; }
+  .trades table { width: 100%; border-collapse: collapse; font-size: 23px; }
+  .trades th {
+    font-family: var(--display);
+    font-size: 10px;
+    text-align: left;
+    padding: 0 10px 12px;
+    color: #5a5a5a;
+  }
+  .trades td {
+    padding: 10px;
+    border-top: 3px solid #adadad;
+  }
+  .trades .amount { text-align: right; white-space: nowrap; font-weight: bold; }
+  .trades .in { color: #1c7a44; }
+  .trades .out { color: #a33325; }
+
+  /* ---------- Products ---------- */
+  .products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .product { padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .product h3 { font-family: var(--display); font-size: 12px; line-height: 1.7; }
+  .product p { font-size: 22px; }
+  .product .badge {
+    align-self: flex-start;
+    font-size: 18px;
+    background: var(--slot);
+    border: 3px solid;
+    border-color: var(--slot-dark) var(--gui-light) var(--gui-light) var(--slot-dark);
+    padding: 2px 8px;
+  }
+
+  /* ---------- Support strip ---------- */
+  .support-strip {
+    padding: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .support-strip p { font-size: 26px; max-width: 52ch; }
+
+  footer {
+    border-top: 4px solid #000;
+    background: #141416;
+    padding: 30px 24px 40px;
+    text-align: center;
+    font-size: 20px;
+    color: #8f8f96;
+  }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-art { order: -1; }
+    .vault-grid, .products { grid-template-columns: 1fr; }
+    nav { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a class="logo" href="#">
+      <svg width="40" height="40" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="6" y="2" width="4" height="2" fill="#a9ffd2"/>
+        <rect x="4" y="4" width="8" height="2" fill="#4de88e"/>
+        <rect x="2" y="6" width="12" height="4" fill="#17c964"/>
+        <rect x="4" y="10" width="8" height="2" fill="#0da84e"/>
+        <rect x="6" y="12" width="4" height="2" fill="#086b32"/>
+        <rect x="6" y="6" width="2" height="2" fill="#a9ffd2"/>
+      </svg>
+      <span>Blockcraft&nbsp;Bank</span>
+    </a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="#vault" data-i18n="nav_accounts">Accounts</a></li>
+        <li><a href="#trades" data-i18n="nav_transfers">Transfers</a></li>
+        <li><a href="#products" data-i18n="nav_loans">Loans</a></li>
+        <li><a href="#support" data-i18n="nav_support">Support</a></li>
+      </ul>
+    </nav>
+    <div class="lang-toggle" role="group" aria-label="Language">
+      <button type="button" id="lang-en" aria-pressed="true">EN</button>
+      <button type="button" id="lang-es" aria-pressed="false">ES</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div>
+      <h1 data-i18n-html="hero_title">Your emeralds, <span class="accent">safe from creepers</span>.</h1>
+      <p data-i18n="hero_sub">Blockcraft Bank keeps your valuables in blast-proof obsidian vaults. Banking for the Overworld since Alpha 1.0.</p>
+      <div class="hero-actions">
+        <a class="mc-btn mc-btn--emerald" href="#vault" data-i18n="cta_open">Open an account</a>
+        <a class="mc-btn" href="#support" data-i18n="cta_talk">Talk to a banker</a>
+      </div>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <svg viewBox="0 0 16 16" shape-rendering="crispEdges">
+        <!-- chest -->
+        <rect x="2" y="5" width="12" height="9" fill="#79553a"/>
+        <rect x="2" y="5" width="12" height="1" fill="#9a7049"/>
+        <rect x="2" y="13" width="12" height="1" fill="#4a3322"/>
+        <rect x="2" y="8" width="12" height="1" fill="#4a3322"/>
+        <rect x="7" y="7" width="2" height="3" fill="#b5b5b5"/>
+        <rect x="7" y="8" width="2" height="1" fill="#7a7a7a"/>
+        <!-- emeralds spilling out -->
+        <rect x="4" y="3" width="2" height="2" fill="#17c964"/>
+        <rect x="10" y="2" width="2" height="2" fill="#17c964"/>
+        <rect x="7" y="1" width="2" height="2" fill="#4de88e"/>
+      </svg>
+    </div>
+  </section>
+
+  <section id="vault">
+    <h2 class="section-title" data-i18n="vault_title">Vault overview</h2>
+    <div class="gui-panel vault">
+      <div class="vault-grid">
+        <div class="slot">
+          <svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+            <rect x="6" y="2" width="4" height="2" fill="#a9ffd2"/>
+            <rect x="4" y="4" width="8" height="2" fill="#4de88e"/>
+            <rect x="2" y="6" width="12" height="4" fill="#17c964"/>
+            <rect x="4" y="10" width="8" height="2" fill="#0da84e"/>
+            <rect x="6" y="12" width="4" height="2" fill="#086b32"/>
+          </svg>
+          <span class="count">1,204</span>
+          <span class="label" data-i18n="asset_emeralds">Emeralds</span>
+        </div>
+        <div class="slot">
+          <svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+            <rect x="4" y="5" width="8" height="2" fill="#ffe98a"/>
+            <rect x="3" y="7" width="10" height="3" fill="#f6c525"/>
+            <rect x="2" y="10" width="12" height="2" fill="#c79413"/>
+          </svg>
+          <span class="count">587</span>
+          <span class="label" data-i18n="asset_gold">Gold ingots</span>
+        </div>
+        <div class="slot">
+          <svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+            <rect x="6" y="2" width="4" height="2" fill="#d8fffa"/>
+            <rect x="4" y="4" width="8" height="2" fill="#8ff5e8"/>
+            <rect x="2" y="6" width="12" height="4" fill="#4aedd9"/>
+            <rect x="4" y="10" width="8" height="2" fill="#22bfae"/>
+            <rect x="6" y="12" width="4" height="2" fill="#127c70"/>
+          </svg>
+          <span class="count">42</span>
+          <span class="label" data-i18n="asset_diamonds">Diamonds</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="trades">
+    <h2 class="section-title" data-i18n="trades_title">Recent trades</h2>
+    <div class="gui-panel trades">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="th_desc">Trade</th>
+            <th data-i18n="th_party">Counterparty</th>
+            <th style="text-align:right" data-i18n="th_amount">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-i18n="tx1">Sold 64 wheat</td>
+            <td data-i18n="tx1_party">Farmer Villager</td>
+            <td class="amount in" data-i18n="tx1_amt">+8 emeralds</td>
+          </tr>
+          <tr>
+            <td data-i18n="tx2">Mending book</td>
+            <td data-i18n="tx2_party">Librarian</td>
+            <td class="amount out" data-i18n="tx2_amt">−32 emeralds</td>
+          </tr>
+          <tr>
+            <td data-i18n="tx3">Beacon loan payment</td>
+            <td>Blockcraft Bank</td>
+            <td class="amount out" data-i18n="tx3_amt">−5 gold ingots</td>
+          </tr>
+          <tr>
+            <td data-i18n="tx4">Mob-drop deposit (gunpowder)</td>
+            <td data-i18n="tx4_party">Night shift</td>
+            <td class="amount in" data-i18n="tx4_amt">+12 emeralds</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="products">
+    <h2 class="section-title" data-i18n="products_title">Products &amp; services</h2>
+    <div class="products">
+      <div class="gui-panel product">
+        <span class="badge" data-i18n="badge_popular">Most popular</span>
+        <h3 data-i18n="p1_title">Creeper Insurance</h3>
+        <p data-i18n="p1_desc">Covers accidental detonations within 5 blocks of your home chest. Hissing sounds not included.</p>
+      </div>
+      <div class="gui-panel product">
+        <span class="badge" data-i18n="badge_rate">From 3.9% APR</span>
+        <h3 data-i18n="p2_title">Beacon Loan</h3>
+        <p data-i18n="p2_desc">Finance your first beacon today. APR stands for Annual Pickaxe Rate, obviously.</p>
+      </div>
+      <div class="gui-panel product">
+        <span class="badge" data-i18n="badge_yield">5% XP yield</span>
+        <h3 data-i18n="p3_title">Netherite Savings</h3>
+        <p data-i18n="p3_desc">Earn experience on every deposit, compounded automatically at each full moon.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="support">
+    <div class="gui-panel support-strip">
+      <p data-i18n="support_text">Need help? Our bankers respond faster than a piston. Start a chat from the bubble in the corner.</p>
+      <a class="mc-btn mc-btn--emerald" href="#support" data-i18n="support_cta">Chat with us</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p data-i18n="footer">Blockcraft Bank — Member of the Overworld Deposit Guarantee Scheme. Not responsible for losses caused by lava, TNT, or trusting a witch.</p>
+</footer>
+
+<!-- =========================================================
+     Site language switching (page copy only — not Glia)
+     The relaunched site uses path-based routing:
+       English:  /
+       Spanish:  /es-us
+     ========================================================= -->
+<script>
+  var I18N = {
+    en: {
+      nav_accounts: 'Accounts', nav_transfers: 'Transfers', nav_loans: 'Loans', nav_support: 'Support',
+      hero_title: 'Your emeralds, <span class="accent">safe from creepers</span>.',
+      hero_sub: 'Blockcraft Bank keeps your valuables in blast-proof obsidian vaults. Banking for the Overworld since Alpha 1.0.',
+      cta_open: 'Open an account', cta_talk: 'Talk to a banker',
+      vault_title: 'Vault overview',
+      asset_emeralds: 'Emeralds', asset_gold: 'Gold ingots', asset_diamonds: 'Diamonds',
+      trades_title: 'Recent trades',
+      th_desc: 'Trade', th_party: 'Counterparty', th_amount: 'Amount',
+      tx1: 'Sold 64 wheat', tx1_party: 'Farmer Villager', tx1_amt: '+8 emeralds',
+      tx2: 'Mending book', tx2_party: 'Librarian', tx2_amt: '\u221232 emeralds',
+      tx3: 'Beacon loan payment', tx3_amt: '\u22125 gold ingots',
+      tx4: 'Mob-drop deposit (gunpowder)', tx4_party: 'Night shift', tx4_amt: '+12 emeralds',
+      products_title: 'Products & services',
+      badge_popular: 'Most popular', badge_rate: 'From 3.9% APR', badge_yield: '5% XP yield',
+      p1_title: 'Creeper Insurance',
+      p1_desc: 'Covers accidental detonations within 5 blocks of your home chest. Hissing sounds not included.',
+      p2_title: 'Beacon Loan',
+      p2_desc: 'Finance your first beacon today. APR stands for Annual Pickaxe Rate, obviously.',
+      p3_title: 'Netherite Savings',
+      p3_desc: 'Earn experience on every deposit, compounded automatically at each full moon.',
+      support_text: 'Need help? Our bankers respond faster than a piston. Start a chat from the bubble in the corner.',
+      support_cta: 'Chat with us',
+      footer: 'Blockcraft Bank — Member of the Overworld Deposit Guarantee Scheme. Not responsible for losses caused by lava, TNT, or trusting a witch.'
+    },
+    es: {
+      nav_accounts: 'Cuentas', nav_transfers: 'Transferencias', nav_loans: 'Pr\u00e9stamos', nav_support: 'Soporte',
+      hero_title: 'Tus esmeraldas, <span class="accent">a salvo de los creepers</span>.',
+      hero_sub: 'Blockcraft Bank guarda tus objetos de valor en b\u00f3vedas de obsidiana a prueba de explosiones. Banca para el Overworld desde Alpha 1.0.',
+      cta_open: 'Abrir una cuenta', cta_talk: 'Hablar con un banquero',
+      vault_title: 'Resumen de tu b\u00f3veda',
+      asset_emeralds: 'Esmeraldas', asset_gold: 'Lingotes de oro', asset_diamonds: 'Diamantes',
+      trades_title: 'Operaciones recientes',
+      th_desc: 'Operaci\u00f3n', th_party: 'Contraparte', th_amount: 'Monto',
+      tx1: 'Venta de 64 trigos', tx1_party: 'Aldeano granjero', tx1_amt: '+8 esmeraldas',
+      tx2: 'Libro de Reparaci\u00f3n', tx2_party: 'Bibliotecario', tx2_amt: '\u221232 esmeraldas',
+      tx3: 'Pago del pr\u00e9stamo de faro', tx3_amt: '\u22125 lingotes de oro',
+      tx4: 'Dep\u00f3sito de bot\u00edn (p\u00f3lvora)', tx4_party: 'Turno nocturno', tx4_amt: '+12 esmeraldas',
+      products_title: 'Productos y servicios',
+      badge_popular: 'El m\u00e1s popular', badge_rate: 'Desde 3.9% TAP', badge_yield: '5% de rendimiento en XP',
+      p1_title: 'Seguro anti-creeper',
+      p1_desc: 'Cubre detonaciones accidentales a menos de 5 bloques de tu cofre principal. Los siseos no est\u00e1n incluidos.',
+      p2_title: 'Pr\u00e9stamo para faro',
+      p2_desc: 'Financia tu primer faro hoy. TAP significa Tasa Anual de Picos, obviamente.',
+      p3_title: 'Ahorro de netherita',
+      p3_desc: 'Gana experiencia con cada dep\u00f3sito, capitalizada autom\u00e1ticamente en cada luna llena.',
+      support_text: '\u00bfNecesitas ayuda? Nuestros banqueros responden m\u00e1s r\u00e1pido que un pist\u00f3n. Inicia un chat desde la burbuja en la esquina.',
+      support_cta: 'Chatea con nosotros',
+      footer: 'Blockcraft Bank — Miembro del Esquema de Garant\u00eda de Dep\u00f3sitos del Overworld. No nos hacemos responsables por p\u00e9rdidas causadas por lava, TNT o por confiar en una bruja.'
+    }
+  };
+
+  function langFromPath() {
+    return window.location.pathname.toLowerCase().indexOf('/es') !== -1 ? 'es' : 'en';
+  }
+
+  function applyTranslations(lang) {
+    var dict = I18N[lang] || I18N.en;
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      var key = el.getAttribute('data-i18n');
+      if (dict[key]) el.textContent = dict[key];
+    });
+    document.querySelectorAll('[data-i18n-html]').forEach(function (el) {
+      var key = el.getAttribute('data-i18n-html');
+      if (dict[key]) el.innerHTML = dict[key];
+    });
+    document.getElementById('lang-en').setAttribute('aria-pressed', String(lang === 'en'));
+    document.getElementById('lang-es').setAttribute('aria-pressed', String(lang === 'es'));
+  }
+
+  function setLang(lang) {
+    var path = lang === 'es' ? '/es-us' : '/';
+    try {
+      history.pushState({ lang: lang }, '', path);
+    } catch (e) {
+      // file:// or sandboxed contexts may block pushState; page copy still switches,
+      // but path-based detection needs the site served over HTTP.
+      console.warn('[Blockcraft] Could not update the URL path:', e.message);
+    }
+    applyTranslations(lang);
+    window.dispatchEvent(new CustomEvent('blockcraft:localechange'));
+  }
+
+  document.getElementById('lang-en').addEventListener('click', function () { setLang('en'); });
+  document.getElementById('lang-es').addEventListener('click', function () { setLang('es'); });
+  window.addEventListener('popstate', function () {
+    applyTranslations(langFromPath());
+    window.dispatchEvent(new CustomEvent('blockcraft:localechange'));
+  });
+
+  applyTranslations(langFromPath());
+
+  if (window.location.protocol === 'file:') {
+    console.info('[Blockcraft] Serve this page over HTTP with SPA fallback (e.g. `npx serve -s .`) so path-based routing works.');
+  }
+</script>
+
+<!-- =========================================================
+     Glia integration
+     ========================================================= -->
+<script async src="https://api.glia.com/salemove_integration.js"></script>
+<script>
+  (function () {
+    // Must match a locale key enabled for the site in Glia Hub
+    // (Admin Console > Settings > Locales). Use a base key like 'es-MX'
+    // or the custom locale key defined for the site (e.g. 'Spanish').
+    var SPANISH_LOCALE = 'Spanish';
+    var DEFAULT_LOCALE = 'en-US';
+
+    function whenGliaReady(callback) {
+      var tries = 0;
+      (function poll() {
+        if (window.getGliaApi) {
+          window.getGliaApi({ version: 'v1' }).then(callback);
+        } else if (++tries < 120) {
+          setTimeout(poll, 250);
+        } else {
+          console.warn('[Blockcraft] Glia SDK did not load. Is this domain registered for your Glia site?');
+        }
+      })();
+    }
+
+    whenGliaReady(function (glia) {
+      var checkAndApplyLocale = function () {
+        var path = window.location.pathname.toLowerCase();
+        try {
+          if (path.includes('/es')) {
+            glia.setLocale(SPANISH_LOCALE);
+          } else {
+            glia.setLocale(DEFAULT_LOCALE);
+          }
+        } catch (err) {
+          console.warn('[Blockcraft] Could not set Glia locale:', err);
+        }
+      };
+
+      // Apply on initial load
+      checkAndApplyLocale();
+
+      // Re-apply when the visitor switches language (SPA navigation)
+      window.addEventListener('blockcraft:localechange', checkAndApplyLocale);
+
+      // Re-apply when an engagement ends, since the widget reverts
+      // to the site default locale without a page refresh
+      if (typeof glia.addEventListener === 'function') {
+        glia.addEventListener('engagement_end', function () {
+          checkAndApplyLocale();
+        });
+      }
+    });
+  })();
+</script>
+
+</body>
+</html>
