@@ -531,17 +531,11 @@
     console.info('[Blockcraft] Serve this page over HTTP with SPA fallback (e.g. `npx serve -s .`) so path-based routing works.');
   }
 </script>
-
 <!-- =========================================================
      Glia integration
      ========================================================= -->
 <script>
   (function () {
-    // Must match a locale key enabled for the site in Glia Hub
-    // (Admin Console > Settings > Locales).
-    var SPANISH_LOCALE = 'es-MX';
-    var DEFAULT_LOCALE = 'en-US';
-
     var installSaleMove = function (onLoad) {
       var doc = document;
       var tag = doc.createElement('script');
@@ -554,38 +548,12 @@
     };
 
     installSaleMove(function () {
-      if (!window.sm || typeof sm.getApi !== 'function') {
-        console.warn('[Blockcraft] Glia script loaded but the SDK is not available. Is this domain registered for your Glia site?');
-        return;
-      }
-
       sm.getApi({ version: 'v1' }).then(function (glia) {
-        var checkAndApplyLocale = function () {
-          var path = window.location.pathname.toLowerCase();
-          try {
-            if (path.includes('/es')) {
-              glia.setLocale(SPANISH_LOCALE);
-            } else {
-              glia.setLocale(DEFAULT_LOCALE);
-            }
-          } catch (err) {
-            console.warn('[Blockcraft] Could not set Glia locale:', err);
-          }
-        };
-
-        // Apply on initial load
-        checkAndApplyLocale();
-
-        // Re-apply when the visitor switches language (SPA navigation)
-        window.addEventListener('blockcraft:localechange', checkAndApplyLocale);
-
-        // Re-apply when an engagement ends, since the widget reverts
-        // to the site default locale without a page refresh
-        var endEvent = (glia.EVENTS && (glia.EVENTS.ENGAGEMENT_ENDED || glia.EVENTS.ENGAGEMENT_END)) || 'engagement_end';
-        if (typeof glia.addEventListener === 'function') {
-          glia.addEventListener(endEvent, function () {
-            checkAndApplyLocale();
-          });
+        // Locale switch for Spanish visitors
+        var urlParams = new URLSearchParams(window.location.search);
+        var lang = urlParams.get('lang');
+        if (lang && lang == 'es') {
+          glia.setLocale('es-MX');
         }
       });
     });
